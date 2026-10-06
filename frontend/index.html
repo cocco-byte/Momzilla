@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Talk it out</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 16px;
+    background: #faf7f5;
+  }
+  .disclosure {
+    background: #fff3e0;
+    border: 1px solid #f0d9b5;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #5c4a2a;
+    margin-bottom: 12px;
+  }
+  #log {
+    height: 60vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0;
+  }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: 16px; line-height: 1.4; white-space: pre-wrap; }
+  .user { align-self: flex-end; background: #6c63ff; color: white; }
+  .bot { align-self: flex-start; background: #ffffff; border: 1px solid #e6e0da; }
+  form { display: flex; gap: 8px; margin-top: 10px; }
+  input[type=text] {
+    flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid #d8d0c8; font-size: 15px;
+  }
+  button {
+    padding: 12px 18px; border: none; border-radius: 10px; background: #6c63ff; color: white; font-size: 15px; cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+</style>
+</head>
+<body>
+  <div class="disclosure">
+    This is a private space to talk about whatever's going on. No one reads these
+    conversations. If something you share suggests you might be going through a
+    lot right now, we may quietly let a counselor at your school know you could
+    use a check-in - we never share what you actually said, just that it might
+    be a good time to reach out to you.
+  </div>
+
+  <div id="log"></div>
+
+  <form id="form">
+    <input id="input" type="text" placeholder="Type here..." autocomplete="off" />
+    <button id="send" type="submit">Send</button>
+  </form>
+
+  <script>
+    const API_BASE = window.MOMZILLA_API_BASE || "http://localhost:8000";
+    const STUDENT_ID = "student-demo";
+
+    let sessionId = null;
+    const log = document.getElementById("log");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+
+    function addMessage(text, who) {
+      const el = document.createElement("div");
+      el.className = "msg " + who;
+      el.textContent = text;
+      log.appendChild(el);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+
+      addMessage(message, "user");
+      input.value = "";
+      sendBtn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ student_id: STUDENT_ID, session_id: sessionId, message }),
+        });
+        if (!res.ok) throw new Error("request failed");
+        const data = await res.json();
+        sessionId = data.session_id;
+        addMessage(data.reply, "bot");
+      } catch (err) {
+        addMessage("Something went wrong reaching the server. Please try again.", "bot");
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    });
+  </script>
+</body>
+</html>
